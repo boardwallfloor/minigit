@@ -46,18 +46,56 @@ func generateHash(name string) string {
 	return fmt.Sprintf("%x", fileHash)
 }
 
-func main() {
-	testFilename := "./test/test.txt"
-	file, err := os.Create(testFilename)
+// create tree
+func createGitTree() {
+	// format : file_permission file_type hash file_name
+	fileInfo, err := os.Stat("./main.go")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("skill issue")
+	}
+	mode := fileInfo.Mode() & 0777
+	var fileType string
+	if fileInfo.IsDir() {
+		fileType = "tree"
+	} else {
+		fileType = "blob"
+	}
+	var entries []string
+	for i := 0; i < 10; i++ {
+		entries = append(entries, fmt.Sprintf("%04o %s %s %s", mode, fileType, "hash", fileInfo.Name()))
+	}
+	filename := "git_tree_object.txt"
+
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatal("Error creating file:", err)
 	}
 	defer file.Close()
 
-	ft := FileTree{root: "./test/"}
-	ft.walkDir(ft.root, 0)
-	err = os.Remove(testFilename)
-	if err != nil {
-		log.Fatal(err)
+	for _, entry := range entries {
+		_, err := fmt.Fprintln(file, entry)
+		if err != nil {
+			log.Fatal("Error inserting entry:", err)
+		}
 	}
+}
+
+// create blob
+// create commit
+
+func main() {
+	// testFilename := "./test/test.txt"
+	// file, err := os.Create(testFilename)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer file.Close()
+	//
+	// ft := FileTree{root: "./test/"}
+	// ft.walkDir(ft.root, 0)
+	// err = os.Remove(testFilename)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	createGitTree()
 }
