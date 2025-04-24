@@ -1,6 +1,3 @@
-Okay, repeating the README generation based on the latest fetched code for your Minigit project. This version aims to be suitable for a portfolio or resume.
-Markdown
-
 # Minigit - A Minimal Git Implementation in Go
 
 ## Overview
