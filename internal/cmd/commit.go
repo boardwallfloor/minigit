@@ -35,7 +35,8 @@ func RunCommit(message string, args []string) {
 		slog.Error("HEAD does not point to a reference", "content", cleanedPath)
 		return
 	}
-	prefixlessPath := strings.TrimPrefix("ref: ", cleanedPath)
+	refTarget := strings.TrimPrefix(cleanedPath, "ref: ")
+	prefixlessPath := strings.TrimPrefix(refTarget, "ref: ")
 	fullPath := filepath.Join(".minigit", prefixlessPath)
 
 	parentHash, err := os.ReadFile(fullPath)
@@ -74,11 +75,13 @@ func RunCommit(message string, args []string) {
 	}
 	slog.Debug("New commit hash", "hash", newCommitHash)
 
+	slog.Debug("Attempting to update ref", "path", fullPath, "hash", newCommitHash)
 	err = os.WriteFile(fullPath, []byte(newCommitHash+"\n"), 0644)
 	if err != nil {
 		slog.Error("Failed to write new commit hash to HEAD", "error", err)
 		return
 	}
+	slog.Info("Successfully updated ref", "path", fullPath) // *** ADD THIS ***
 
 	firstLine := strings.Split(message, "\n")[0]
 	parentIndicator := ""

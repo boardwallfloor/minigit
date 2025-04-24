@@ -1,4 +1,3 @@
-664 700f4ad295b8c89a7e5b4e4975d0f46f0aba4877 go.mod
 664 ef2cc32bb358c5a6f1153d7354061935cbe8c5e5 internal/cmd/add.go
 664 1216a7e7b4bf61662204e376fe29499f0110230a internal/cmd/init.go
 664 10bcc9f9843ab73cf159abc8196b1ece59a7ba4f internal/index/index.go
