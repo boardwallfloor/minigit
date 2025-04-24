@@ -48,9 +48,7 @@ func main() {
 			addCmd.PrintDefaults()
 			os.Exit(1)
 		}
-		// Placeholder - create cmd.RunAdd later
 		cmd.RunAdd(addCmd.Args())
-		// fmt.Println("TODO: Implement add command for files:", addCmd.Args())
 
 	case "commit":
 		commitCmd := flag.NewFlagSet("commit", flag.ExitOnError)
@@ -62,22 +60,7 @@ func main() {
 			os.Exit(1)
 		}
 		// Placeholder - create cmd.RunCommit later
-		// cmd.RunCommit(*msg, commitCmd.Args()) // Pass message and remaining non-flag args
-		fmt.Println("TODO: Implement commit command with message:", *msg)
-
-	// --- Placeholder for HashObject (useful for debugging) ---
-	// case "hash-object":
-	// 	hashCmd := flag.NewFlagSet("hash-object", flag.ExitOnError)
-	// 	write := hashCmd.Bool("w", false, "Write the object to the object database")
-	// 	hashCmd.Parse(args)
-	// 	if hashCmd.NArg() != 1 {
-	// 		fmt.Println("Usage: minigit hash-object [-w] <file>")
-	// 		os.Exit(1)
-	// 	}
-	// 	filePath := hashCmd.Arg(0)
-	// 	// Placeholder - create cmd.RunHashObject later
-	//  // cmd.RunHashObject(filePath, *write)
-	//  fmt.Println("TODO: Implement hash-object command for file:", filePath, "Write:", *write)
+		cmd.RunCommit(*msg, commitCmd.Args()) // Pass message and remaining non-flag args
 
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
