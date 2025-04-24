@@ -70,9 +70,11 @@ mkdir my_code
 echo "package main" > my_code/app.go
 ../minigit add file.txt my_code/app.go
 ../minigit commit -m "Update file.txt, add app.go"
+```
 
-Code Structure (Based on Implementation)
+## Code Structure (Based on Implementation)
 
+```
 .
 ├── .minigit/          # Created by 'init' (hidden)
 │   ├── HEAD
@@ -96,9 +98,8 @@ Code Structure (Based on Implementation)
 ├── README.md          # This file
 └── lcs/               # LCS / Diffing logic module [cite: 1]
     └── main.go
-
-(Note: Adjust structure details based on your exact layout)
-Challenges & Learnings
+```
+## Challenges & Learnings
 
     Accurately implementing the recursive logic for building Git tree objects from the index.
     Ensuring correct object formatting (headers, tree entry format) and hashing.
@@ -106,7 +107,7 @@ Challenges & Learnings
     Handling file system operations atomically and robustly (e.g., index writes, ref updates).
     Gaining a much deeper appreciation for the elegance and efficiency of Git's internal design.
 
-Future Improvements
+## Future Improvements
 
 The current implementation provides the core init-add-commit cycle. Potential next steps include:
 
