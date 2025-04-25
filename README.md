@@ -82,18 +82,11 @@ echo "Version 2" > my_file.txt
 ../minigit log
 ```
 
-Challenges & Learnings
+## Challenges & Learnings
 
-    Accurately implementing the recursive construction of tree objects from the index file was a key challenge.
-    Ensuring precise formatting for Git object headers and tree entries was crucial for compatibility and correctness.
-    Managing state reliably through the index file and HEAD/branch references, especially during updates, required careful handling (e.g., atomic writes for the index).
-    Developing the diff logic involved understanding and implementing the LCS algorithm.
-    This project significantly deepened my appreciation for the design decisions and efficiency of Git's internal architecture.
+- Accurately implementing the recursive construction of tree objects from the index file was a key challenge.
+- Ensuring precise formatting for Git object headers and tree entries was crucial for compatibility and correctness.
+- Managing state reliably through the index file and HEAD/branch references, especially during updates, required careful handling (e.g., atomic writes for the index).
+- Developing the diff logic involved understanding and implementing the LCS algorithm.
+- This project significantly deepened my appreciation for the design decisions and efficiency of Git's internal architecture.
 
-Potential Future Enhancements
-
-    Implement minigit status for a comprehensive overview of the repository state (unstaged, staged, untracked files).
-    Add support for configuration files (.gitconfig equivalent) for user details.
-    Implement basic branching (minigit branch <name>) and checkout (minigit checkout <branch>).
-    Allow adding entire directories recursively with minigit add <directory>.
-    Improve error handling and user feedback.
