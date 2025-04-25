@@ -2,16 +2,21 @@ package object
 
 import (
 	"boardwallfloor/minigit/internal/index"
+	"bufio"
 	"bytes"
 	"compress/zlib"
 	"crypto/sha1"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
+
+const EmptyTreeHash = "4b825dc642cb6eb9a060e54bf8d69288fbee4904" // SHA1 hash for empty tree
 
 type TreeEntry struct {
 	Mode string
@@ -202,4 +207,210 @@ func WriteTreeFromIndex(indexPath *index.Index) (string, error) {
 	}
 
 	return rootHash, nil
+}
+
+func ReadObject(hash string) (string, []byte, error) {
+	if len(hash) != 40 {
+		return "", nil, fmt.Errorf("invalid hash length: %s", hash)
+	}
+	filePath := filepath.Join(".minigit", "objects", hash[:2], hash[2:])
+	file, err := os.Open(filePath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil, fmt.Errorf("object %s not found", hash)
+		} else {
+			return "", nil, fmt.Errorf("failed to open object %s: %w", hash, err)
+		}
+	}
+	defer file.Close()
+
+	zlibReader, err := zlib.NewReader(file)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create zlib reader for object %s: %w", hash, err)
+	}
+	defer zlibReader.Close()
+
+	res, err := io.ReadAll(zlibReader)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to read object %s: %w", hash, err)
+	}
+
+	nullIndex := bytes.IndexByte(res, 0)
+	if nullIndex == -1 {
+		return "", nil, fmt.Errorf("invalid object format for %s", hash)
+	}
+
+	headerBytes := res[:nullIndex]
+	content := res[nullIndex+1:] // Assign to return variable
+
+	headerString := string(headerBytes)
+	headerParts := strings.SplitN(headerString, " ", 2) // Use SplitN
+	if len(headerParts) != 2 {
+		return "", nil, fmt.Errorf("invalid object header format for %s: '%s'", hash, headerString)
+	}
+
+	objectType := headerParts[0] // Assign to return variable
+	sizeStr := headerParts[1]
+
+	// Validate object type using switch
+	switch objectType {
+	case "blob", "tree", "commit":
+		// Valid type
+	default:
+		return "", nil, fmt.Errorf("unknown object type '%s' for hash %s", objectType, hash)
+	}
+
+	// Parse and validate size
+	expectedSize, err := strconv.Atoi(sizeStr)
+	if err != nil {
+		return "", nil, fmt.Errorf("invalid object size '%s' for hash %s: %w", sizeStr, hash, err)
+	}
+
+	if expectedSize != len(content) {
+		return "", nil, fmt.Errorf("object size mismatch for %s: expected %d, got %d", hash, expectedSize, len(content))
+	}
+
+	// Return the correct type, the actual content bytes, and nil error
+	return objectType, content, nil
+}
+
+func ParseCommit(content []byte) (string, []string, string, string, string, error) {
+	reader := bytes.NewReader(content)
+	scanner := bufio.NewScanner(reader)
+
+	foundBlankLine := false
+	messageBuilder := strings.Builder{}
+	var treeHash, authorInfo, committerInfo string
+	var parentHash []string
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !foundBlankLine {
+			if line == "" {
+				foundBlankLine = true
+				continue
+			}
+
+			parts := strings.SplitN(line, " ", 2)
+			if len(parts) != 2 {
+				// Allow unknown headers? Or error? Let's ignore for now.
+				continue
+			}
+			key, value := parts[0], strings.TrimSpace(parts[1])
+
+			switch key {
+			case "tree":
+				treeHash = value
+			case "parent":
+				parentHash = append(parentHash, value)
+			case "author":
+				authorInfo = value
+			case "committer":
+				committerInfo = value
+			}
+		} else {
+			// We are now reading the commit message part
+			messageBuilder.WriteString(line)
+			messageBuilder.WriteString("\n") // Re-add newline removed by scanner
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", nil, "", "", "", fmt.Errorf("failed to parse commit content: %w", err)
+	}
+
+	commitMessage := strings.TrimSpace(messageBuilder.String())
+	if treeHash == "" || authorInfo == "" || committerInfo == "" {
+		return "", nil, "", "", "", fmt.Errorf("missing required fields in commit content")
+	}
+	return treeHash, parentHash, authorInfo, committerInfo, commitMessage, nil
+}
+
+func ReadTreeEntries(treeHash string) (map[string]index.IndexEntry, error) {
+	if treeHash == "" || treeHash == EmptyTreeHash { // Handle empty tree case
+		return make(map[string]index.IndexEntry), nil
+	}
+	results := make(map[string]index.IndexEntry)
+	err := readTreeRecursive(treeHash, "", &results) // Start recursion with empty base path
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+// readTreeRecursive is the helper function for ReadTreeEntries.
+func readTreeRecursive(currentTreeHash string, currentBasePath string, results *map[string]index.IndexEntry) error {
+	slog.Debug("Reading tree entries for", "hash", currentTreeHash, "basePath", currentBasePath)
+
+	objType, content, err := ReadObject(currentTreeHash) // Assumes ReadObject exists and works
+	if err != nil {
+		return fmt.Errorf("failed reading tree object %s: %w", currentTreeHash, err)
+	}
+	if objType != "tree" {
+		return fmt.Errorf("object %s is not a tree, type %s", currentTreeHash, objType)
+	}
+
+	reader := bytes.NewReader(content)
+	scanner := bufio.NewScanner(reader)
+	lineNumber := 0
+
+	for scanner.Scan() {
+		lineNumber++
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		// Parse format: <mode> <space> <type> <space> <hash> <tab> <name>
+		parts1 := strings.SplitN(line, " ", 3) // Split into mode, type, rest
+		if len(parts1) != 3 {
+			return fmt.Errorf("invalid tree entry format line %d in %s: %s", lineNumber, currentTreeHash, line)
+		}
+		modeStr, entryType, rest := parts1[0], parts1[1], parts1[2]
+
+		parts2 := strings.SplitN(rest, "\t", 2) // Split rest into hash, name
+		if len(parts2) != 2 {
+			return fmt.Errorf("invalid tree entry format line %d in %s (missing tab?): %s", lineNumber, currentTreeHash, line)
+		}
+		entryHash, entryName := parts2[0], parts2[1]
+
+		// Validate basic components
+		if entryName == "" || entryHash == "" || entryType == "" || modeStr == "" {
+			return fmt.Errorf("invalid tree entry format line %d in %s (empty component): %s", lineNumber, currentTreeHash, line)
+		}
+
+		fullPath := filepath.Join(currentBasePath, entryName)
+		// Use Clean to normalize path separators, especially important if currentBasePath was ""
+		fullPath = filepath.Clean(fullPath)
+		// Remove leading "." if present after join/clean with empty base path
+		fullPath = strings.TrimPrefix(fullPath, "."+string(filepath.Separator))
+
+		switch entryType {
+		case "blob":
+			modeUint, err := strconv.ParseUint(modeStr, 8, 32)
+			if err != nil {
+				return fmt.Errorf("invalid mode '%s' on line %d in %s: %w", modeStr, lineNumber, currentTreeHash, err)
+			}
+			entry := index.IndexEntry{
+				Mode: os.FileMode(modeUint),
+				Hash: entryHash,
+				Path: fullPath,
+			}
+			(*results)[fullPath] = entry // Add blob entry to the map
+			slog.Debug("Found blob entry", "path", fullPath, "hash", entryHash)
+
+		case "tree":
+			slog.Debug("Recursing into tree", "path", fullPath, "hash", entryHash)
+			err := readTreeRecursive(entryHash, fullPath, results) // Recursive call
+			if err != nil {
+				return fmt.Errorf("failed processing subtree %s: %w", fullPath, err)
+			}
+		default:
+			return fmt.Errorf("unknown entry type '%s' on line %d in %s", entryType, lineNumber, currentTreeHash)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error scanning tree object %s: %w", currentTreeHash, err)
+	}
+
+	return nil // Success for this level
 }

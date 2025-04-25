@@ -62,6 +62,31 @@ func main() {
 		// Placeholder - create cmd.RunCommit later
 		cmd.RunCommit(*msg, commitCmd.Args()) // Pass message and remaining non-flag args
 
+		// --- Add diff command ---
+	case "diff":
+		diffCmd := flag.NewFlagSet("diff", flag.ExitOnError)
+		// Add --staged flag (or --cached)
+		staged := diffCmd.Bool("staged", false, "Show diff between index and HEAD commit")
+		// You could add other flags later if needed (e.g., specific files)
+
+		diffCmd.Parse(args) // Parse the arguments specific to diff
+
+		// Call RunDiff, passing remaining non-flag args (potential file paths)
+		// and the boolean flag value
+		cmd.RunDiff(diffCmd.Args(), *staged) // Need to create cmd.RunDiff
+
+	case "log":
+		logCmd := flag.NewFlagSet("log", flag.ExitOnError)
+		// Add flags later if needed (e.g., -n)
+		logCmd.Parse(args)
+		if logCmd.NArg() > 0 {
+			fmt.Println("Usage: minigit log")
+			logCmd.PrintDefaults()
+			os.Exit(1)
+		}
+		cmd.RunLog(logCmd.Args())
+
+		// --- Add other commands like status later ---
 	default:
 		fmt.Printf("Unknown command: %s\n", command)
 		// TODO: Print available commands
