@@ -80,6 +80,7 @@ echo "Version 2" > my_file.txt
 
 # View the commit history
 ../minigit log
+```
 
 Challenges & Learnings
 
