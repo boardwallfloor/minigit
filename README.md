@@ -1,120 +1,98 @@
-# Minigit - A Minimal Git Implementation in Go
+# Minigit: A Minimal Git Implementation in Go
 
-## Overview
+## Project Overview
 
-Minigit is a learning project where I implemented a simplified version of the Git version control system from scratch using Go. The goal was to gain a deep understanding of Git's internal object model, content-addressable storage, and core command workflows. This project demonstrates foundational version control concepts through the implementation of `init`, `add`, and `commit` commands.
+Minigit is a command-line application built from scratch in Go that replicates core functionalities of the Git version control system. Developed as a learning exercise, this project demonstrates a deep dive into version control fundamentals, Git's internal object model, and the implementation of essential commands like `init`, `add`, `commit`, `log`, and `diff`.
+
 
 ## Motivation
 
-While Git is a daily tool for most developers, its internal workings can often feel like a black box. I built Minigit to demystify these internals by tackling the core challenges directly. This involved exploring:
+Git is indispensable in modern software development, yet its internal mechanics can be opaque. Minigit was created to demystify Git by implementing its core concepts directly. This project provided hands-on experience with:
 
-* Version control system fundamentals.
-* Content-addressable storage via SHA1 hashing.
-* Modeling file content (blobs), directory structures (trees), and history (commits).
-* Managing a staging area (index).
-* Implementing file system interactions, data serialization, and compression (zlib) in Go.
-* Developing a functional command-line application.
+* **Version Control Principles:** Understanding how changes are tracked and history is maintained.
+* **Content-Addressable Storage:** Implementing object storage using SHA-1 hashing[cite: 6].
+* **Git Object Model:** Modeling file content (blobs), directory structures (trees), and commit history (commits)[cite: 6].
+* **Staging Area (Index):** Managing the transition between the working directory and the repository history.
+* **Go Programming:** Utilizing Go's standard libraries for file system interaction, data serialization (custom text format for index and tree objects)[cite: 6], compression (zlib)[cite: 6], and building a command-line interface (`flag` package)[cite: 1].
+* **Algorithm Implementation:** Implementing a diffing algorithm (based on Longest Common Subsequence) to compare file versions[cite: 5].
 
-## Features Implemented (Core MVP)
+## Key Features Implemented
 
-* **`minigit init`**: Initializes a new Minigit repository (`.minigit` directory with `objects/`, `refs/heads/`, and `HEAD` file).
-* **`minigit add <file>...`**: Stages files for commit. It calculates blob hashes (content + header), stores compressed blob objects in the object database, and updates the `.minigit/index` file tracking staged file paths, modes, and hashes. Detects if content or mode has changed since the last add.
-* **`minigit commit -m <message>`**: Creates a commit object representing the current state of the index.
-    * Builds tree objects recursively based on the index, storing them in the object database.
-    * Determines the parent commit from the current branch reference.
-    * Creates a commit object containing the root tree hash, parent hash, author/committer info (name, email, timestamp), and the commit message.
-    * Stores the commit object in the object database.
-    * Updates the current branch head reference (e.g., `.minigit/refs/heads/main`) to point to the new commit.
+Based on the current codebase, Minigit supports the following commands:
 
-## Technical Implementation Details
+* **`minigit init`**: Initializes a new `.minigit` repository directory structure (`objects/`, `refs/heads/`, `HEAD` file)[cite: 7].
+* **`minigit add <file>...`**: Stages one or more files. Calculates SHA-1 hashes of file content (blobs), stores compressed blob objects, and updates the `.minigit/index` file with file paths, modes, and hashes[cite: 6]. It detects if file content or mode has changed since the last add.
+* **`minigit commit -m <message>`**: Records the staged changes (current state of the index) as a new commit.
+    * Builds tree objects recursively from the index to represent directory structures[cite: 6].
+    * Identifies the parent commit by reading the current branch reference.
+    * Creates and stores a commit object containing the root tree hash, parent commit hash (if any), author/committer details (currently hardcoded, timestamped), and the commit message[cite: 6].
+    * Updates the current branch reference (e.g., `.minigit/refs/heads/main`) to point to the new commit hash.
+* **`minigit log`**: Displays the commit history of the current branch, walking backwards from the current commit through parent pointers[cite: 8].
+* **`minigit diff`**: Shows differences between file states.
+    * `minigit diff`: Compares the working directory files against the staging area (index).
+    * `minigit diff --staged`: Compares the staging area (index) against the last commit (HEAD).
 
-* **Language:** Go (Golang)
-* **Hashing:** SHA1 for object identification.
-* **Object Model:** Implementation of core Git objects:
-    * **Blobs:** Store file content prefixed with `blob <size>\x00`.
-    * **Trees:** Store sorted directory listings (`<mode> <type> <hash>\t<name>\n`) prefixed with `tree <size>\x00`. Built recursively.
-    * **Commits:** Store metadata (tree, parent, author, committer, message) prefixed with `commit <size>\x00`.
-* **Object Storage:** Uses the standard Git convention (`.minigit/objects/` directory, hash split into `XX/YYYY...` path).
-* **Compression:** Objects are compressed using `compress/zlib` before storage.
-* **Index/Staging Area:** Implemented via the `.minigit/index` file (currently using a text format: `<mode> <hash> <path>`). Read/Write operations use atomic renaming for safety.
-* **References:** Uses `.minigit/HEAD` and files within `.minigit/refs/heads/` to manage branch state.
-* **Command-Line Interface:** Built using Go's standard library (`os.Args`, `flag`) for command dispatching.
-* **(Developed)** Diffing capabilities using Longest Common Subsequence (LCS) algorithm were implemented [cite: 1] (integration pending).
+## Technical Highlights
+
+* **Language:** Go
+* **Core Data Structures:** Custom implementations for Git's Blobs, Trees, and Commits[cite: 6].
+* **Hashing:** SHA-1 for content addressing and object identification[cite: 6].
+* **Storage:** Mimics Git's object storage (`.minigit/objects/XX/YYYY...`) with zlib compression[cite: 6].
+* **Index:** A custom text-based index file (`.minigit/index`) acts as the staging area, managed with atomic writes for safety.
+* **References:** Uses `.minigit/HEAD` and `.minigit/refs/heads/` for branch management[cite: 7].
+* **Diffing:** Implements line-based diffing using a Longest Common Subsequence (LCS) approach[cite: 5].
 
 ## How to Build and Run
 
 ```bash
-# Ensure Go (e.g., 1.21+) is installed
+# 1. Ensure Go (e.g., 1.21 or later) is installed.
+#    [https://go.dev/doc/install](https://go.dev/doc/install)
 
-# Navigate to the project directory (containing go.mod)
-# cd path/to/minigit-master
+# 2. Clone or download the repository.
+#    git clone <repository-url>
+#    cd minigit
 
-# Build the executable
-# Adjust output path and source path if needed
-go build -o minigit ./cmd/server # Or your main package path: ./
+# 3. Build the executable.
+#    (From the root 'minigit' directory containing main.go)
+go build -o minigit .
 
-# Example Usage (in a new temporary directory)
-mkdir /tmp/minigit_test_repo && cd /tmp/minigit_test_repo
+# 4. Example Usage (in a separate test directory):
+mkdir /tmp/my_test_repo && cd /tmp/my_test_repo
 
-# Initialize
-../minigit init # Use correct path to your built 'minigit'
+# Initialize a new Minigit repository
+../minigit init  # Use the correct relative path to your built 'minigit' executable
 
-# Add first file and commit
-echo "Hello Minigit v1" > file.txt
-../minigit add file.txt
-../minigit commit -m "Add file.txt"
+# Create a file, add it, and commit it
+echo "Version 1" > my_file.txt
+../minigit add my_file.txt
+../minigit commit -m "Initial commit: Add my_file.txt"
 
-# Modify file, add new file, commit again
-echo "Hello Minigit v2" > file.txt
-mkdir my_code
-echo "package main" > my_code/app.go
-../minigit add file.txt my_code/app.go
-../minigit commit -m "Update file.txt, add app.go"
-```
+# Modify the file and view the unstaged diff
+echo "Version 2" > my_file.txt
+../minigit diff
 
-## Code Structure (Based on Implementation)
+# Stage the change and view the staged diff
+../minigit add my_file.txt
+../minigit diff --staged
 
-```
-.
-├── .minigit/          # Created by 'init' (hidden)
-│   ├── HEAD
-│   ├── index          # Managed by 'add' / read by 'commit'
-│   ├── objects/       # Stores blob, tree, commit objects
-│   └── refs/
-│       └── heads/     # Stores branch head refs (e.g., main)
-├── cmd/
-│   └── server/        # Main application entry point (adjust if main.go is at root)
-│       └── main.go
-├── internal/
-│   ├── cmd/           # Command implementations (init, add, commit)
-│   │   ├── init.go
-│   │   ├── add.go
-│   │   └── commit.go
-│   ├── index/         # Index/staging area logic
-│   │   └── index.go
-│   └── object/        # Git object handling (blob, tree, commit, storage)
-│       └── object.go  # Includes StoreBlob, StoreTree, StoreCommit, WriteTreeFromIndex etc.
-├── go.mod
-├── README.md          # This file
-└── lcs/               # LCS / Diffing logic module [cite: 1]
-    └── main.go
-```
-## Challenges & Learnings
+# Commit the change
+../minigit commit -m "Update my_file.txt to Version 2"
 
-    Accurately implementing the recursive logic for building Git tree objects from the index.
-    Ensuring correct object formatting (headers, tree entry format) and hashing.
-    Managing state correctly through the index file and HEAD references.
-    Handling file system operations atomically and robustly (e.g., index writes, ref updates).
-    Gaining a much deeper appreciation for the elegance and efficiency of Git's internal design.
+# View the commit history
+../minigit log
 
-## Future Improvements
+Challenges & Learnings
 
-The current implementation provides the core init-add-commit cycle. Potential next steps include:
+    Accurately implementing the recursive construction of tree objects from the index file was a key challenge.
+    Ensuring precise formatting for Git object headers and tree entries was crucial for compatibility and correctness.
+    Managing state reliably through the index file and HEAD/branch references, especially during updates, required careful handling (e.g., atomic writes for the index).
+    Developing the diff logic involved understanding and implementing the LCS algorithm.
+    This project significantly deepened my appreciation for the design decisions and efficiency of Git's internal architecture.
 
-    Implement minigit status to show repository state.
-    Implement minigit log to display commit history.
-    Integrate the existing LCS logic into a minigit diff command.
-    Implement basic branching (minigit branch, update HEAD).
-    Implement minigit checkout (updating working directory, index, and HEAD).
-    Add support for configuration files (e.g., user name/email).
-    Allow adding directories recursively via minigit add <dir>.
+Potential Future Enhancements
+
+    Implement minigit status for a comprehensive overview of the repository state (unstaged, staged, untracked files).
+    Add support for configuration files (.gitconfig equivalent) for user details.
+    Implement basic branching (minigit branch <name>) and checkout (minigit checkout <branch>).
+    Allow adding entire directories recursively with minigit add <directory>.
+    Improve error handling and user feedback.

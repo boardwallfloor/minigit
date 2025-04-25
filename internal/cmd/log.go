@@ -87,7 +87,7 @@ func RunLog(args []string) {
 		}
 		commitCount++
 
-	} // End history loop
+	}
 
 	if commitCount == 0 {
 		slog.Info("No commit history to display.")
